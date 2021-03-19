@@ -471,7 +471,9 @@ const derived = new Derived('Lee');
 console.log(derived.sayHi()); // Hi! Lee how are you doing?
 // super는 내부 슬롯 [[HomeObject]]를 갖는 ES6 메서드 내에서만 사용할 수 있는 키워드다.
 // sayHi 클래스 필드에 할당한 화살표 함수는 ES6 메서드는 아니지만 함수 자체의 super 바인딩을 갖지 않으므로
-// super를 참조해도 에러가 발생하지 않고 상위 스코프인 constructor의 super바인딩을 참조한다.
+// super를 참조해도 에러가 발생하지 않고 this와 마찬가지로 클래스 필드에 할당한 화살표 함수 내부에서 super를 참조하면
+// constructor 내부의 super 바인딩을 참조한다.
+// 위 예제의 경우 Derived 클래스의 constructor는 생략되었지만 암묵적으로 constructor가 생성된다. (25.8.4절 "서브클래의 constructor" 참고)
 
 
 // arguments
