@@ -293,3 +293,200 @@ console.log(prefixer.add(['transition', 'user-select']));
 // ['-webkit-transition', '-webkit-user-select']
 // 화살표 함수는 함수 자체의 this 바인딩을 갖지 않는다. 따라서 화살표 함수 내부에서 this를 참조하면 상위 스코프의 this를 그대로 참조한다
 // 이를 lexical this라 한다. 이는 마치 렉시컬 스코프와 같이 화살표 함수의 this가 함수가 정의된 위치에 의해 결정된다는 것을 의미한다.
+
+// 화살표 함수는 함수 자체의 this 바인딩이 존재하지 않으므로, 화살표 함수 내부에서 this를 참조하면 일반적인 식별자처럼
+// 스코프 체인을 통해 상위 스코프에서 this를 탐색한다.
+// 화살표 함수는 상위 스코프의 this를 참조한다.
+() => this.x;
+
+// 익명 함수에 상위 스코프의 this를 주입한다. 위 화살표 함수와 동일하게 동작한다.
+(function () { return this.x; }).bind(this);
+// 화살표 함수와 화살표 함수가 중첩되어 있다면 상위 화살표 함수에도 this 바인딩이 없으므로 체인 상에서 가장 가까운 상위 함수 중에서
+// 화살표 함수가 아닌 함수의 this를 참조한다.
+// 중첩 함수 foo의 상위 스코프는 즉시 실행 함수다.
+// 따라서 화살표 함수 foo의 this는 상위 스코프인 즉시 실행 함수의 this를 가리킨다.
+(function () {
+    const foo = () => console.log(this);
+    foo();
+}).call({ a: 1 }); // { a: 1 }
+
+// bar 함수는 화살표 함수를 반환한다.
+// bar 함수가 반환한 화살표 함수의 상위 스코프는 화살표 함수 bar다.
+// 하지만 화살표 함수는 함수 자체의 this 바인딩을 갖지 않으므로 bar 함수가 반환한
+// 화살표 함수 내부에서 참조하는 this는 화살표 함수가 아닌 즉시 실행 함수의 this를 가리킨다.
+(function () {
+    const bar = () => () => console.log(this);
+    bar()();
+}).call({ a: 1 }); // { a: 1 }
+
+// 만약 화살표 함수가 전역 함수르면 화살표 함수의 this는 전역 객체를 가리킨다.
+// 전역 함수 foo의 상위 스코프는 전역이므로 화살표 함수 foo의 this는 전역 객체를 가리킨다.
+const foo = () => console.log(this);
+foo(); // window
+
+// 프로퍼티에 할당한 화살표 함수도 스코프 체인 상에서 가장 가까운 상위 함수 중에서 화살표 함수가 아닌 함수의 this를 참조한다.
+// increase 프로퍼티에 할당한 화살표 함수의 상위 스코프는 전역이다.
+// 따라서 increase 프로퍼티에 할당한 화살표 함수의 this는 전역 객체를 가리킨다.
+const counter = {
+    num: 1,
+    increase: () => ++this.num
+};
+
+console.log(counter.increase()); // NaN
+
+// 화살표 함수는 함수 자체의 this 바인딩을 갖지 않기 때문에 call, apply, bind 메서드를 사용해도 화살표 내부 함수의 this를 교체할 수 없다.
+window.x = 1;
+
+const normal = function () { return this.x; };
+const arrow = () => this.x;
+
+console.log(normal.call({ x: 10 })); // 10
+console.log(arrow.call({ x: 10 }));  // 1
+
+// 화살표 함수가 call, apply, bind 메서드를 호출 할 수 없다는 의미는 아니다.
+// this를 교체할 수 없고 언제나 상위 스코프의 this 바인딩을 참조한다는 것이다.
+const add = (a, b) => a + b;
+
+console.log(add.call(null, 1, 2));    // 3
+console.log(add.apply(null, [1, 2])); // 3
+console.log(add.bind(null, 1, 2)());  // 3
+
+// 메서드를 화살표 함수로 정의하는 것은 피해야 한다.
+// ES6 메서드가 아닌 일반적인 메서드를 의미한다.
+// Bad
+const person = {
+    name: 'Lee',
+    sayHi: () => console.log(`Hi ${this.name}`)
+};
+
+// sayHi 프로퍼티에 할당된 화살표 함수 내부의 this는 상위 스코프인 전역의 this가 가리키는
+// 전역 객체를 가리키므로 이 예제를 브라우저에서 실행하면 this.name은 빈 문자열을 갖는
+// window.name과 같다. 전역 객체 window에는 빌트인 프로퍼티 name이 존재한다.
+person.sayHi(); // Hi
+// 메서드를 정의할 때 ES6 메서드 축약표현으로 정의하는 것이 좋다.
+// Good
+const person = {
+    name: 'Lee',
+    sayHi() {
+        console.log(`Hi ${this.name}`);
+    }
+};
+
+person.sayHi(); // Hi Lee
+
+// 프로토타입 객체의 프로퍼티에 화살표 함수를 할당하는 경우도 동일한 문제가 발생한다.
+// Bad
+function Person(name) {
+    this.name = name;
+}
+
+Person.prototype.sayHi = () => console.log(`Hi ${this.name}`);
+
+const person = new Person('Lee');
+// 이 예제를 브라우저에서 실행하면 this.name은 빈 문자열을 갖는 window.name과 같다.
+person.sayHi(); // Hi
+
+// 프로퍼티를 동적 추가할때는 ES6 메서드 정의를 사용할 수 없으므로 일반 함수를 할당한다.
+// Good
+function Person(name) {
+    this.name = name;
+}
+
+Person.prototype.sayHi = function () { console.log(`Hi ${this.name}`); };
+
+const person = new Person('Lee');
+person.sayHi(); // Hi Lee
+
+// 일반 함수가 아닌 ES6 메서드를 동적 추가하고 싶다면 다음과 같이 객체 리터럴을 바인딩하고
+// 프로토타입의 constructor 프로퍼티와 생성자 함수 간의 연결을 재설정한다.
+function Person(name) {
+    this.name = name;
+}
+
+Person.prototype = {
+    // constructor 프로퍼티와 생성자 함수 간의 연결을 재설정
+    constructor: Person,
+    sayHi() { console.log(`Hi ${this.name}`); }
+};
+
+const person = new Person('Lee');
+person.sayHi(); // Hi Lee
+
+// 클래스 필드 정의 제안을 사용하여 클래스 필드에 화살표 함수를 할당할 수도 있다.
+// Bad
+class Person {
+    // 클래스 필드 정의 제안
+    name = 'Lee';
+    sayHi = () => console.log(`Hi ${this.name}`);
+}
+
+const person = new Person();
+person.sayHi(); // Hi Lee
+// sayHi 클래스 필드에 할당한 화살표 함수 내부에서 this를 참조하면 상위 스코프의 this 바인딩을 참조한다.
+// 그렇다면 sayHi 클래스 필드에 할당한 화살표 함수의 상위 스코프는 무엇일까? sayHi 클래스 필드는 인스턴스 프로퍼티이므로 아래와 같다.
+class Person {
+    constructor() {
+        this.name = 'Lee';
+        // 클래스가 생성한 인스턴스(this)의 sayHi 프로퍼티에 화살표 함수를 할당한다.
+        // sayHi 프로퍼티는 인스턴스 프로퍼티이다.
+        this.sayHi = () => console.log(`Hi ${this.name}`);
+    }
+}
+// sayHi 클래스 필드에 할당한 화살표 함수의 상위 스코프는 constructor이다.
+// 즉, constructor내부의 this 바인딩과 같다.
+// constructor 내부의 this 바인딩은 클래스가 생성한 인스턴스를 가리키므로
+// sayHi 클래스 필드에 할당한 화살표 함수 내부의 this 또한 클래스가 생성한 인스턴스를 가리킨다.
+// 하지만 클래스 필드에 할당한 화살표 함수는 프로토타입 메서드가 아니라 인스턴스 메서드가 된다.
+// 따라서 메서드를 정의할 때는 ES6 메서드 축약표현으로 정의한 ES6 메서드를 사용하는 것이 좋다.
+// Good
+class Person {
+    // 클래스 필드 정의
+    name = 'Lee';
+
+    sayHi() { console.log(`Hi ${this.name}`); }
+}
+const person = new Person();
+person.sayHi(); // Hi Lee
+
+
+// super
+// 화살표 함수는 함수 자체의 super 바인딩을 갖지 않는다.
+// 따라서 화살표 함수 내부에서 super를 참조하면 this와 마찬가지로 상위 스코프의 super를 참조한다.
+class Base {
+    constructor(name) {
+        this.name = name;
+    }
+
+    sayHi() {
+        return `Hi! ${this.name}`;
+    }
+}
+
+class Derived extends Base {
+    // 화살표 함수의 super는 상위 스코프인 constructor의 super를 가리킨다.
+    sayHi = () => `${super.sayHi()} how are you doing?`;
+}
+
+const derived = new Derived('Lee');
+console.log(derived.sayHi()); // Hi! Lee how are you doing?
+// super는 내부 슬롯 [[HomeObject]]를 갖는 ES6 메서드 내에서만 사용할 수 있는 키워드다.
+// sayHi 클래스 필드에 할당한 화살표 함수는 ES6 메서드는 아니지만 함수 자체의 super 바인딩을 갖지 않으므로
+// super를 참조해도 에러가 발생하지 않고 상위 스코프인 constructor의 super바인딩을 참조한다.
+
+
+// arguments
+// 화살표 함수는 함수 자체의 arguments 바인딩을 갖지 않는다.
+// 따라서 화살표 함수 내부에서 arguments를 참조하면 this와 마찬가지로 상위 스코프의 arguments를 참조한다.
+(function () {
+    // 화살표 함수 foo의 arguments는 상위 스코프인 즉시 실행 함수의 arguments를 가리킨다.
+    const foo = () => console.log(arguments); // [Arguments] { '0': 1, '1': 2 }
+    foo(3, 4);
+}(1, 2));
+
+// 화살표 함수 foo의 arguments는 상위 스코프인 전역의 arguments를 가리킨다.
+// 하지만 전역에는 arguments 객체가 존재하지 않는다. arguments 객체는 함수 내부에서만 유효하다.
+const foo = () => console.log(arguments);
+foo(1, 2); // ReferenceError: arguments is not defined
+// arguments 객체는 함수를 정의할 때 매개변수의 개수를 확정할 수 없는 가변 인자 함수를 구현할 때 유용하다
+// 하지만 화살표 함수에서는 arguments 객체를 사용할 수 없다.
+// 화살표 함수로 가변 인자 함수를 구현해야 할 때는 반드시 Rest 파라미터를 사용해야 한다.
