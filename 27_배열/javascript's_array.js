@@ -118,6 +118,28 @@ for (let i = 0; i < 10000000; i++) {
 console.timeEnd('Object Performance Test');
 // 약 309ms
 
+// 그러나 자바스크립트의 배열 내에 같은 타입의 자료가 아닌 별도의 자료형이 들어갈 경우
+// 인접배열에 가깝게 자동으로 처리되던 방식이 작동되지 않으면서 성능이 떨어진다.
+// 즉, 데이터 타입이 일정하지 않은 배열을 선언하고 순회하는 경우에는 ArrayBuffer를 사용해야한다.
+// 또한 blob 데이터나 image, audio 같은 binary 데이터를 다룰때에도 이걸 사용해야 한다.
+// ArrayBuffer는 ES6부터 등장했으며 Typed Array의 dataview를 통해 사용하는 것을 권장한다(new Uint16Array(), new Int32Array() 등)
+// https://evan-moon.github.io/2019/06/15/diving-into-js-array/?utm_source=gaerae.com&utm_campaign=%EA%B0%9C%EB%B0%9C%EC%9E%90%EC%8A%A4%EB%9F%BD%EB%8B%A4&utm_medium=social
+// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Typed_arrays
+// https://javascript.info/arraybuffer-binary-arrays
+// 이 경우 실제 밀집된 메모리에 배열을 선언하게 되면서 밀집배열과 비슷한 성능을 갖게 됨
+const LIMIT = 10000000;
+const buffer = new ArrayBuffer(LIMIT * 4);
+const arr = new Int32Array(buffer);
+console.time("ArrayBuffer insertion time");
+for (let i = 0; i < LIMIT; i++) {
+    arr[i] = i;
+}
+console.time("ArrayBuffer read time");
+for (let i = 0; i < LIMIT; i++) {
+    let p = arr[i];
+}
+console.timeEnd("ArrayBuffer read time");
+
 
 // length 프로퍼티와 희소 배열
 // length프로퍼티는 빈 배열일 경우 0, 아닐경우 인덱스+1이다.
